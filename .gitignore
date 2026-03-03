@@ -1,0 +1,22 @@
+# Python cache / bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test and coverage artifacts
+.pytest_cache/
+.coverage*
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Editor / OS files
+.DS_Store
+*.swp
+*.swo
+*.idea/
+.vscode/
+
