@@ -54,8 +54,6 @@ class ECSResourceManager:
     def _resource_url(self) -> str:
         """
         Return the ECS endpoint URL from the resource's `url` attribute.
-
-        We require a single canonical ResourceAttributeType name: 'url'.
         """
         value = self.resource.get_attribute("url", expand=False, typed=False)
         if not value:
@@ -78,8 +76,51 @@ class ECSResourceManager:
         """Return a connected ECS client for this ColdFront resource."""
         return self.client
 
-    def create_namespace(self, namespace_name: str):
-        return self.client.namespace.create(name=namespace_name)
+    def return_resource_replication_group(self) -> Optional[str]:
+        """
+        Return the replication group (vpool) ID specified on the resource, or None if not set.
+        """
+        value = self.resource.get_attribute("replication_group", expand=False, typed=False)
+        if value and str(value).strip():
+            return str(value).strip()
+        return None
+
+    def _get_replication_group_id(self, namespace_name: str) -> str:
+        """
+        Return a valid ECS replication group (vpool) ID for bucket creation.
+
+        Resolved in order:
+        1. Namespace's default_data_services_vpool if the namespace exists and has one
+        2. Resource attribute 'replication_group' if set
+        """
+        # Use namespace default if it has one
+        try:
+            ns = self.client.namespace.get(namespace_name)
+            vpool = ns.get("default_data_services_vpool") or ns.get("defaultDataServicesVpool")
+            if vpool and str(vpool).strip():
+                return str(vpool).strip()
+        except ECSClientException:
+            pass
+
+        # Optional override from ColdFront resource
+        value = self.return_resource_replication_group()
+        if value:
+            return value
+        raise ValueError(
+            "Could not resolve ECS replication group for bucket creation. "
+            "Set the 'replication_group' resource attribute to a valid vpool ID, or ensure "
+            "the namespace has a default replication group configured."
+        )
+
+    def create_namespace(
+        self,
+        namespace_name: str,
+        replication_group: Optional[str] = None,
+    ):
+        kwargs = {"name": namespace_name}
+        if replication_group:
+            kwargs["default_data_services_vpool"] = replication_group
+        return self.client.namespace.create(**kwargs)
 
     def namespace_exists(self, namespace_name: str) -> bool:
         """
@@ -125,10 +166,11 @@ class ECSResourceManager:
         filesystem_enabled: bool = False,
         encryption_enabled: bool = False,
     ):
+        vpool_id = self._get_replication_group_id(namespace_name)
         self.client.bucket.create(
             bucket_name=bucket_name,
             namespace=namespace_name,
-            replication_group="",
+            replication_group=vpool_id,
             filesystem_enabled=filesystem_enabled,
             encryption_enabled=encryption_enabled,
         )

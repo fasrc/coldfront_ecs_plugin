@@ -36,6 +36,13 @@ Set ECS credentials and endpoint-related settings:
   - Each ECS `Resource` in ColdFront must have a `ResourceAttribute` named **`url`** whose value is the ECS endpoint hostname, **without** port (for example: `https://ecs.example.org`).
   - The plugin uses this to build `token_endpoint` and `ecs_endpoint` as `"{url}:4443/login"` and `"{url}:4443"`.
 
+- **Replication group (vpool) for bucket creation**
+  - Creating a bucket requires a valid ECS replication group (vpool) ID. The plugin resolves it in this order:
+    1. Resource attribute **`replication_group`**, if set — use this vpool ID (e.g. `urn: storageos: ReplicationGroupInfo: ...`).
+    2. The namespace’s **default_data_services_vpool**, if the namespace exists and has one.
+    3. The **first replication group** returned by the cluster’s vpool list.
+  - If no replication groups exist and no resource attribute is set, autocreate fails with a clear error. You can run `ecs_setup` to ensure the **replication_group** attribute type exists, then set that attribute on the ECS resource to a valid vpool ID if you want to pin a specific vpool.
+
 - **Namespace mapping for Allocations**
   - The ECS namespace for an allocation is resolved as:
     - Allocation attribute `Namespace` (if present), otherwise
@@ -72,7 +79,7 @@ After installation and app enablement:
 python manage.py ecs_setup
 ```
 
-This creates or updates only the attribute types specific to the ECS plugin: `url` (Resource), `Namespace` and `Bucket` (Allocation). It does not create types that ColdFront already provides via `add_resource_defaults` and `add_allocation_defaults` (e.g. `allocated_tb`, `used_tb`, `Storage Quota (TB)`, `Quota_In_Bytes`). Run ColdFront’s `add_resource_defaults` and `add_allocation_defaults` first if you have not already. Idempotent; safe to run multiple times.
+This creates or updates only the attribute types specific to the ECS plugin: `url`, `replication_group` (Resource), `Namespace` and `Bucket` (Allocation). It does not create types that ColdFront already provides via `add_resource_defaults` and `add_allocation_defaults` (e.g. `allocated_tb`, `used_tb`, `Storage Quota (TB)`, `Quota_In_Bytes`). Run ColdFront’s `add_resource_defaults` and `add_allocation_defaults` first if you have not already. Idempotent; safe to run multiple times.
 
 **Sync ECS quota and usage into ColdFront:**
 
