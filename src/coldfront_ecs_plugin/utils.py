@@ -119,7 +119,8 @@ class ECSResourceManager:
     ):
         kwargs = {"name": namespace_name}
         if replication_group:
-            kwargs["default_data_services_vpool"] = replication_group
+            vpool_id = self._get_replication_group_id(namespace_name)
+            kwargs["default_data_services_vpool"] = vpool_id
         return self.client.namespace.create(**kwargs)
 
     def namespace_exists(self, namespace_name: str) -> bool:
