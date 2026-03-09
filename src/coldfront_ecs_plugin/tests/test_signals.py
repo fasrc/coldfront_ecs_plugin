@@ -45,6 +45,7 @@ class ECSSignalTests(TestCase):
         manager.default_namespace_for_allocation.return_value = "ns1"
         manager.default_bucket_for_allocation.return_value = "bucket1"
         manager.namespace_exists.return_value = False
+        manager.return_resource_replication_group.return_value = None
 
         allocation_autocreate.send(
             sender=self.__class__,
@@ -55,7 +56,7 @@ class ECSSignalTests(TestCase):
 
         manager.default_namespace_for_allocation.assert_called_once_with(self.allocation)
         manager.default_bucket_for_allocation.assert_called_once_with(self.allocation, "ns1")
-        manager.create_namespace.assert_called_once_with("ns1")
+        manager.create_namespace.assert_called_once_with("ns1", replication_group=None)
         manager.assign_quota_to_namespace.assert_called_once()
         manager.create_bucket_for_namespace.assert_called_once()
         # nfs_share should enable filesystem access on the bucket

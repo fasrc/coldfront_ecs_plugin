@@ -78,12 +78,40 @@ class ECSResourceManager:
 
     def return_resource_replication_group(self) -> Optional[str]:
         """
-        Return the replication group (vpool) ID specified on the resource, or None if not set.
+        Return the replication group name specified on the resource, or None if not set.
+
+        The resource attribute stores the replication group's name (e.g. 'us1'), not the vpool ID.
         """
         value = self.resource.get_attribute("replication_group", expand=False, typed=False)
         if value and str(value).strip():
             return str(value).strip()
         return None
+
+    def replication_group_id_from_name(self, name: str) -> str:
+        """
+        Return the ECS replication group (vpool) ID for the given replication group name.
+
+        Lists vpools from the cluster and finds the one whose name matches. The name is
+        the human-readable replication group name (e.g. 'us1'), not the URN/id.
+        """
+        name = name.strip()
+        if not name:
+            raise ValueError("Replication group name cannot be empty.")
+        r = self.client.replication_group.list()
+        vpools = r.get("data_service_vpool") or r.get("dataServiceVpool") or []
+        for vp in vpools:
+            vp_name = (vp.get("name") or "").strip()
+            if vp_name == name:
+                vp_id = vp.get("id")
+                if vp_id and str(vp_id).strip():
+                    return str(vp_id).strip()
+                raise ValueError(
+                    f"Replication group '{name}' has no id in ECS response."
+                )
+        raise ValueError(
+            f"Replication group '{name}' not found on ECS. "
+            "Check the name or list replication groups on the cluster."
+        )
 
     def _get_replication_group_id(self, namespace_name: str) -> str:
         """
@@ -91,7 +119,7 @@ class ECSResourceManager:
 
         Resolved in order:
         1. Namespace's default_data_services_vpool if the namespace exists and has one
-        2. Resource attribute 'replication_group' if set
+        2. Resource attribute 'replication_group' (stored as a name) resolved to ID via the cluster
         """
         # Use namespace default if it has one
         try:
@@ -102,14 +130,14 @@ class ECSResourceManager:
         except ECSClientException:
             pass
 
-        # Optional override from ColdFront resource
+        # Resource attribute holds replication group name → resolve to ID
         value = self.return_resource_replication_group()
         if value:
-            return value
+            return self.replication_group_id_from_name(value)
         raise ValueError(
             "Could not resolve ECS replication group for bucket creation. "
-            "Set the 'replication_group' resource attribute to a valid vpool ID, or ensure "
-            "the namespace has a default replication group configured."
+            "Set the 'replication_group' resource attribute to the replication group name, "
+            "or ensure the namespace has a default replication group configured."
         )
 
     def create_namespace(
@@ -119,7 +147,7 @@ class ECSResourceManager:
     ):
         kwargs = {"name": namespace_name}
         if replication_group:
-            vpool_id = self._get_replication_group_id(namespace_name)
+            vpool_id = self.replication_group_id_from_name(replication_group)
             kwargs["default_data_services_vpool"] = vpool_id
         return self.client.namespace.create(**kwargs)
 
