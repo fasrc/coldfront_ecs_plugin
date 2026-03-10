@@ -236,11 +236,25 @@ class ECSResourceManager:
 
     def update_resource_usage(self):
         """Update the matching ColdFront resource with ECS usage/capacity values."""
-        allocated_tb = self.sum_namespace_quotas_tb()
-        used_tb = self.sum_all_bucket_usage_tb()
-        self._set_resource_attribute("allocated_tb", allocated_tb)
+        try:
+            r = self.client.capacity.get_cluster_capacity()
+        except ECSClientException:
+            logger.debug("Could not get ECS cluster capacity", exc_info=True)
+            raise
+        # capacity_tb
+        provisioned_gb = _to_float(r.get("totalProvisioned_gb") or r.get("totalProvisionedGb"), 0.0)
+        capacity_tb = provisioned_gb / GB_PER_TB
+        self._set_resource_attribute("capacity_tb", capacity_tb)
+        # used_tb
+        free_gb = _to_float(r.get("totalFree_gb") or r.get("totalFreeGb"), 0.0)
+        used_gb = provisioned_gb - free_gb
+        used_tb = used_gb / GB_PER_TB
         self._set_resource_attribute("used_tb", used_tb)
-        return {"allocated_tb": allocated_tb, "used_tb": used_tb}
+        # allocated_tb
+        allocated_tb = self.sum_namespace_quotas_tb()
+        self._set_resource_attribute("allocated_tb", allocated_tb)
+        result = {"allocated_tb": allocated_tb, 'capacity_tb': capacity_tb, 'used_tb': used_tb}
+        return result
 
     def list_namespaces(self) -> list[str]:
         response = self.client.namespace.list()
