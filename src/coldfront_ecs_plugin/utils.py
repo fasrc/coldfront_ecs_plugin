@@ -144,11 +144,15 @@ class ECSResourceManager:
         self,
         namespace_name: str,
         replication_group: Optional[str] = None,
+        ldap_group: Optional[str] = None
     ):
         kwargs = {"name": namespace_name}
         if replication_group:
             vpool_id = self.replication_group_id_from_name(replication_group)
             kwargs["default_data_services_vpool"] = vpool_id
+        if ldap_group:
+            ldap_domain = self.resource.get_attribute("ldap_domain", expand=False, typed=False)
+            kwargs['user_mapping'] = [{'domain': ldap_domain, 'groups': [ldap_group]}]
         return self.client.namespace.create(**kwargs)
 
     def namespace_exists(self, namespace_name: str) -> bool:

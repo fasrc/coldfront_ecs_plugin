@@ -31,7 +31,7 @@ class Command(BaseCommand):
 
         # Plugin-only ResourceAttributeTypes: url, replication_group (Text from add_resource_defaults)
         text_res = ResourceAttributeTypeModel.objects.get(name="Text")
-        for name in ("url", "replication_group"):
+        for name in ("url", "replication_group", "ldap_domain"):
             _, created = ResourceAttributeType.objects.update_or_create(
                 name=name,
                 defaults={"attribute_type": text_res},

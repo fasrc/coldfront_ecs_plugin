@@ -40,6 +40,7 @@ def ecs_allocation_autocreate(sender, **kwargs):
         return
 
     automation_specifications = approval_form_data.get("automation_specifications") or []
+    project_title = allocation_obj.project.title
 
     try:
         manager = ECSResourceManager(resource)
@@ -54,7 +55,11 @@ def ecs_allocation_autocreate(sender, **kwargs):
 
         resource_rg_name = manager.return_resource_replication_group()
         # Create namespace
-        manager.create_namespace(namespace_name, replication_group=resource_rg_name)
+        manager.create_namespace(
+            namespace_name,
+            replication_group=resource_rg_name,
+            ldap_group=project_title
+        )
 
         # Attach namespace quota based on allocation size (TB), when available
         quota_tb = None
