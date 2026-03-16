@@ -152,6 +152,11 @@ class ECSResourceManager:
             kwargs["default_data_services_vpool"] = vpool_id
         if ldap_group:
             ldap_domain = self.resource.get_attribute("ldap_domain", expand=False, typed=False)
+            if not ldap_domain:
+                raise ValueError(
+                    f"Cannot set user mapping for namespace '{namespace_name}' because the resource "
+                    "has no 'ldap_domain' attribute configured."
+                )
             kwargs['user_mapping'] = [{'domain': ldap_domain, 'groups': [ldap_group]}]
         return self.client.namespace.create(**kwargs)
 
