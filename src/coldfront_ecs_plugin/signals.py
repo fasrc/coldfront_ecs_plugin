@@ -106,8 +106,8 @@ def ecs_allocation_autocreate(sender, **kwargs):
 
     except Exception as exc:
         message = (
-            f"ECS provisioning failed for allocation {getattr(allocation_obj, 'pk', '?')} "
-            f"on resource {getattr(resource, 'name', '?')}: {exc}"
+            f"ECS provisioning failed for allocation {allocation_obj.pk} "
+            f"on resource {resource.name}: {exc}"
         )
         logger.exception(
             message,
@@ -154,8 +154,8 @@ def ecs_allocation_autoupdate(sender, **kwargs):
 
     except Exception as exc:
         message = (
-            f"ECS quota update failed for allocation {getattr(allocation_obj, 'pk', '?')} "
-            f"on resource {getattr(resource, 'name', '?')}: {exc}"
+            f"ECS quota update failed for allocation {allocation_obj.pk} "
+            f"on resource {resource.name}: {exc}"
         )
         logger.exception(
             message,
