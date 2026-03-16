@@ -70,6 +70,7 @@ class ECSResourceManager:
             password=_setting("ECS_PASS"),
             token_endpoint=f"{self.url}:4443/login",
             ecs_endpoint=f"{self.url}:4443",
+            request_timeout=float(_setting("ECS_REQUEST_TIMEOUT", 30.0)),
         )
 
     def connect_to_resource(self):
@@ -157,7 +158,7 @@ class ECSResourceManager:
                     f"Cannot set user mapping for namespace '{namespace_name}' because the resource "
                     "has no 'ldap_domain' attribute configured."
                 )
-            kwargs['user_mapping'] = [{'domain': ldap_domain, 'groups': {'group': ldap_group}}]
+            kwargs['user_mapping'] = [{'domain': ldap_domain, 'groups': [ldap_group]}]
         return self.client.namespace.create(**kwargs)
 
     def namespace_exists(self, namespace_name: str) -> bool:
