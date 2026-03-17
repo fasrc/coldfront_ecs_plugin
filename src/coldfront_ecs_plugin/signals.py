@@ -2,6 +2,7 @@ import logging
 
 from django.dispatch import receiver
 
+from coldfront.core.allocation.models import AllocationAttributeType
 from coldfront.core.allocation.signals import (
     allocation_autocreate,
     allocation_autoupdate,
@@ -92,18 +93,6 @@ def ecs_allocation_autocreate(sender, **kwargs):
             filesystem_enabled=filesystem_enabled,
         )
 
-        logger.info(
-            "ECS provisioning completed for allocation %s on resource %s "
-            "(namespace=%s, bucket=%s, automation=%s)",
-            allocation_obj.pk,
-            resource.name,
-            namespace_name,
-            bucket_name,
-            sorted(automation_specifications),
-            extra={"category": "integration:ecs", "status": "success"},
-        )
-        return "ecs"
-
     except Exception as exc:
         message = (
             f"ECS provisioning failed for allocation {allocation_obj.pk} "
@@ -115,7 +104,31 @@ def ecs_allocation_autocreate(sender, **kwargs):
         )
         # Raising ValueError ensures the view can surface a clear error message
         raise ValueError(message) from exc
+    try:
+        subdir_type = AllocationAttributeType.objects.get(name="Subdirectory")
+        allocation_obj.allocationattribute_set.create(
+            allocation_attribute_type=subdir_type,
+            value=f"{namespace_name}:{bucket_name}",
+        )
+    except AllocationAttributeType.DoesNotExist:
+        # If the Subdirectory attribute type is not configured, skip.
+        logger.warning(
+            "ECS plugin: Subdirectory attribute types not present; "
+            "skipping creation of corresponding allocation attributes.",
+            extra={"category": "integration:ecs"},
+        )
 
+    logger.info(
+        "ECS provisioning completed for allocation %s on resource %s "
+        "(namespace=%s, bucket=%s, automation=%s)",
+        allocation_obj.pk,
+        resource.name,
+        namespace_name,
+        bucket_name,
+        sorted(automation_specifications),
+        extra={"category": "integration:ecs", "status": "success"},
+    )
+    return "ecs"
 
 @receiver(allocation_autoupdate)
 def ecs_allocation_autoupdate(sender, **kwargs):
